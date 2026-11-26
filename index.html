@@ -398,7 +398,7 @@ function tile(d){
  let cls='tile k-'+k,body='',st='',act='',lit=false,ic=I[k]||I.sensor;
  const pw=c.measure_power?.value;
  if(k==='light'||k==='socket'||k==='fan'){
-  lit=!!c.onoff.value&&d.available!==false&&!(c.dim&&!(c.dim.value>0));st=lit?(c.dim?'På · '+Math.round(c.dim.value*100)+' %':'På'):'Av';
+  lit=!!c.onoff.value&&d.available!==false&&!(c.dim&&!(Math.round((c.dim.value||0)*100)>0));st=lit?(c.dim?'På · '+Math.round(c.dim.value*100)+' %':'På'):'Av';
   if(lit&&pw>1)st+=' · '+nf(pw)+' W';
   if(c.dim){const p=Math.round((c.dim.value||0)*100);body=`<input class="rng" type="range" min="1" max="100" value="${p}" style="--p:${p}%" data-cap="dim" aria-label="Lysstyrke">`}
   act='toggle'}
@@ -453,7 +453,7 @@ function renderZones(){
  $('#zones').innerHTML=(fav?[`<button class="chip${S.zone==='fav'?' sel':''}" data-z="fav">Favoritter</button>`]:[]).concat([`<button class="chip${S.zone==='all'?' sel':''}" data-z="all">Alle rom</button>`]).concat(z.map(id=>{const t=zoneTemp(id);return `<button class="chip${S.zone===id?' sel':''}" data-z="${esc(id)}">${esc(zName(id))}${t!=null?`<small>${f1(t)}°</small>`:''}</button>`})).join('')}
 function renderSummary(){
  const ds=Object.values(S.devices).filter(d=>shown(d)&&!S.cfg.hidden.includes(d.id)&&inZone(d));
- const lightsOn=ds.filter(d=>kind(d)==='light'&&val(d,'onoff')&&d.available!==false&&!(caps(d).dim&&!(val(d,'dim')>0)));
+ const lightsOn=ds.filter(d=>kind(d)==='light'&&val(d,'onoff')&&d.available!==false&&!(caps(d).dim&&!(Math.round((val(d,'dim')||0)*100)>0)));
  const warn=ds.filter(d=>readings(d).some(r=>r.a)||(kind(d)==='lock'&&!val(d,'locked'))).map(d=>{const r=readings(d).find(x=>x.a);return d.name+' '+(r?r.t.toLowerCase().replace('!',''):'ulåst')});
  const parts=[lightsOn.length?`${lightsOn.length} lys på`:'Alle lys er av'];
  $('#summary').innerHTML=`<span>${esc(parts.join(''))}</span>${warn.length?`<span class="warnTxt">${esc(warn.join(' · '))}</span>`:''}${lightsOn.length&&!S.edit?`<button class="tbtn" id="allOff">${I.power} Slå av lys${S.zone==='all'?'':' her'}</button>`:''}`}
