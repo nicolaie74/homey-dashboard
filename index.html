@@ -98,6 +98,9 @@ main{overflow-y:auto;padding:16px 28px 48px 10px}
 .tile.on .st{color:color-mix(in srgb,var(--onink) 62%,transparent)}
 .rd{font-size:30px;font-weight:500;letter-spacing:-.025em;line-height:1.1;margin-top:6px;white-space:nowrap}
 .tile.warn{box-shadow:inset 0 0 0 2px var(--hot)}.tile.warn .st,.tile.warn .rd{color:var(--hot)}
+.rng.ct{margin-top:2px}.rng.ct::-webkit-slider-runnable-track{background:linear-gradient(to right,#bcd9ff,#f4f7ff 45%,#ffd9a8 70%,#ffab52)!important}.rng.ct::-moz-range-track{background:linear-gradient(to right,#bcd9ff,#f4f7ff 45%,#ffd9a8 70%,#ffab52)}.rng.ct::-moz-range-progress{background:transparent}
+.tile.has-ct{min-height:184px}
+.wrow{display:flex;align-items:center;gap:8px}.wic{width:34px;height:34px;flex:none}.wic:empty{display:none}.wic svg{width:100%;height:100%;overflow:visible}
 .tile.off{opacity:.5;background:transparent;border-style:dashed;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}.tile.off .ic{background:transparent}
 .w2{grid-column:span 2}
 .thermo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:4px}
@@ -153,7 +156,7 @@ details{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}summar
   <aside class="side">
     <div class="clock"><div id="time">--:--</div><div id="date"></div><div id="greet"></div></div>
     <div class="stats">
-      <div class="stat"><span class="lbl" id="outL">Ute</span><b id="outT">–</b></div>
+      <div class="stat"><span class="lbl" id="outL">Ute</span><div class="wrow"><span class="wic" id="wIc" aria-hidden="true"></span><b id="outT">–</b></div></div>
       <div class="stat"><span class="lbl">Inne, snitt</span><b id="inT">–</b></div>
     </div>
     <section class="card" id="energy">
@@ -288,13 +291,13 @@ function demoData(){
  S.zones=Object.fromEntries([Z('hjem','Hjem'),Z('stue','Stue','hjem'),Z('kjokken','Kjøkken','hjem'),Z('soverom','Soverom','hjem'),Z('bad','Bad','hjem'),Z('gang','Gang','hjem'),Z('kontor','Kontor','hjem'),Z('ute','Utendørs','hjem')].map(z=>[z.id,z]));
  const tt=(v,min=5,max=30)=>({value:v,min,max,step:.5});
  const list=[
-  mk('l1','Taklampe','stue','light',{onoff:true,dim:.7}),mk('l2','Leselampe','stue','light',{onoff:false,dim:.4}),
+  mk('l1','Taklampe','stue','light',{onoff:true,dim:.7,light_temperature:.65}),mk('l2','Leselampe','stue','light',{onoff:false,dim:.4}),
   mk('t1','Varmepumpe','stue','thermostat',{target_temperature:tt(21,16,30),measure_temperature:21.4}),
   mk('m1','Sonos','stue','speaker',{speaker_playing:true,volume_set:.25,speaker_track:'Nattevakt',speaker_artist:'Sigrid',speaker_next:false,speaker_prev:false}),
   mk('b1','Gardiner','stue','curtain',{windowcoverings_set:1}),
   mk('l3','Spotter','kjokken','light',{onoff:true,dim:1}),mk('l4','Benkebelysning','kjokken','light',{onoff:true}),
   mk('s1','Kaffetrakter','kjokken','socket',{onoff:false,measure_power:0}),mk('c5','Lekkasje oppvask','kjokken','sensor',{alarm_water:false}),
-  mk('l5','Nattbordlampe','soverom','light',{onoff:false,dim:.3}),
+  mk('l5','Nattbordlampe','soverom','light',{onoff:false,dim:.3,light_temperature:.8}),
   mk('t3','Panelovn','soverom','heater',{onoff:true,target_temperature:tt(18),measure_temperature:18.6,measure_power:0}),
   mk('c4','Klima soverom','soverom','sensor',{measure_temperature:18.6,measure_humidity:44}),
   mk('l6','Speil','bad','light',{onoff:false}),
@@ -340,7 +343,7 @@ function demoScene(name){
 const LIB='https://cdn.athom.com/homey-api/3.21.3.js';
 const redirectUrl=()=>location.origin+location.pathname;
 let cloud=null,hapi=null,syncT=null;
-const WATCH=['onoff','dim','target_temperature','measure_temperature','measure_humidity','measure_power','measure_luminance','measure_co2','measure_battery','alarm_motion','alarm_contact','alarm_water','alarm_smoke','alarm_co','locked','windowcoverings_set','windowcoverings_state','speaker_playing','volume_set','speaker_track','speaker_artist'];
+const WATCH=['onoff','dim','light_temperature','light_mode','target_temperature','measure_temperature','measure_humidity','measure_power','measure_luminance','measure_co2','measure_battery','alarm_motion','alarm_contact','alarm_water','alarm_smoke','alarm_co','locked','windowcoverings_set','windowcoverings_state','speaker_playing','volume_set','speaker_track','speaker_artist'];
 function loadLib(){return window.AthomCloudAPI?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src=LIB;s.onload=res;s.onerror=()=>rej(new Error('Fikk ikke lastet Homey-biblioteket. Sjekk internett.'));document.head.appendChild(s)})}
 function makeCloud(){return new window.AthomCloudAPI({clientId:S.cfg.clientId,clientSecret:S.cfg.clientSecret,redirectUrl:redirectUrl()})}
 async function beginLogin(){await loadLib();cloud=makeCloud();location.href=cloud.getLoginUrl()}
@@ -378,11 +381,29 @@ async function logout(){try{if(cloud)await cloud.logout()}catch(e){}clearInterva
 
 /* ---------- Vær fra MET (api.met.no) ---------- */
 const SYM={clearsky:'klarvær',fair:'lettskyet',partlycloudy:'delvis skyet',cloudy:'skyet',fog:'tåke',lightrain:'lett regn',rain:'regn',heavyrain:'kraftig regn',lightrainshowers:'regnbyger',rainshowers:'regnbyger',heavyrainshowers:'kraftige byger',lightsleet:'lett sludd',sleet:'sludd',heavysleet:'kraftig sludd',lightsleetshowers:'sluddbyger',sleetshowers:'sluddbyger',lightsnow:'lett snø',snow:'snø',heavysnow:'kraftig snø',lightsnowshowers:'snøbyger',snowshowers:'snøbyger',heavysnowshowers:'kraftige snøbyger'};
+function wIcon(sym,night){
+ if(!sym)return'';
+ const sun='<circle cx="12" cy="12" r="4.3" fill="#ffc24a"/><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4 7 7M17 17l1.6 1.6M5.4 18.6 7 17M17 7l1.6-1.6" stroke="#ffc24a" stroke-width="1.8" stroke-linecap="round"/>';
+ const moon='<path d="M15.6 3.2a8.4 8.4 0 1 0 5.3 13.6A7.2 7.2 0 0 1 15.6 3.2z" fill="#dfe3ff"/>';
+ const cl=(dy=0)=>`<path transform="translate(0 ${dy})" d="M7 19h10.6a4.1 4.1 0 0 0 .5-8.2 5.6 5.6 0 0 0-10.8 1.3A3.5 3.5 0 0 0 7 19z" fill="#eef1f6" stroke="rgb(0 0 0/.22)" stroke-width=".7"/>`;
+ const sky=night?moon:sun;
+ const drops='<path d="M9 18.6 8 21.2M13 18.6l-1 2.6M17 18.6l-1 2.6" stroke="#4fa7ff" stroke-width="1.9" stroke-linecap="round"/>';
+ const flakes='<g fill="#fff" stroke="#8fa6c0" stroke-width=".7"><circle cx="9" cy="19.6" r="1.4"/><circle cx="13" cy="21.4" r="1.4"/><circle cx="17" cy="19.6" r="1.4"/></g>';
+ let g;
+ if(/thunder/.test(sym))g=cl(-3)+'<path d="M13.2 14.5 10 19.6h3l-1.6 4.2 4.8-6.2h-3.1l1.6-3.1z" fill="#ffd23f" stroke="#c99a00" stroke-width=".5"/>';
+ else if(/sleet/.test(sym))g=cl(-3)+'<path d="M9 18.6 8 21.2" stroke="#4fa7ff" stroke-width="1.9" stroke-linecap="round"/><g fill="#fff" stroke="#8fa6c0" stroke-width=".7"><circle cx="13" cy="21" r="1.4"/><circle cx="17" cy="19.6" r="1.4"/></g>';
+ else if(/snow/.test(sym))g=cl(-3)+flakes;
+ else if(/rain/.test(sym))g=(/showers/.test(sym)?`<g transform="translate(-4 -5) scale(.7)">${sky}</g>`:'')+cl(-3)+drops;
+ else if(sym==='fog')g=cl(-4)+'<path d="M4.5 18.5h15M7 21.6h10" stroke="#aeb8c4" stroke-width="1.9" stroke-linecap="round"/>';
+ else if(sym==='cloudy')g=cl(0);
+ else if(sym==='fair'||sym==='partlycloudy')g=`<g transform="translate(-4 -5) scale(.75)">${sky}</g>`+cl(sym==='fair'?2:1);
+ else g=sky;
+ return `<svg viewBox="0 0 24 24" fill="none">${g}</svg>`}
 async function loadMet(){
  if(!S.cfg.met)return;
  try{const {lat,lon}=S.cfg.met;const r=await fetch(`https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${(+lat).toFixed(3)}&lon=${(+lon).toFixed(3)}`);
   if(!r.ok)throw new Error(r.status);const j=await r.json();const ts=j.properties.timeseries[0].data;
-  S.met={t:ts.instant.details.air_temperature,sym:String(ts.next_1_hours?.summary?.symbol_code||'').replace(/_(day|night|polartwilight)$/,'')};
+  const code=String(ts.next_1_hours?.summary?.symbol_code||ts.next_6_hours?.summary?.symbol_code||'');S.met={t:ts.instant.details.air_temperature,sym:code.replace(/_(day|night|polartwilight)$/,''),night:/_(night|polartwilight)$/.test(code)};
   renderSide()}catch(e){}}
 async function findPlace(){
  const q=$('#fPlace').value.trim(),m=$('#fPlaceMsg');if(!q)return;m.className='msg';m.textContent='Søker …';
@@ -431,6 +452,7 @@ function tile(d){
   lit=!!c.onoff.value&&d.available!==false&&!(c.dim&&!(Math.round((c.dim.value||0)*100)>0));st=lit?(c.dim?'På · '+Math.round(c.dim.value*100)+' %':'På'):'Av';
   if(lit&&pw>1)st+=' · '+nf(pw)+' W';
   if(c.dim){const p=Math.round((c.dim.value||0)*100);body=`<input class="rng" type="range" min="1" max="100" value="${p}" style="--p:${p}%" data-cap="dim" aria-label="Lysstyrke">`}
+  if(c.light_temperature&&c.light_temperature.setable!==false){const q=Math.round((c.light_temperature.value??.5)*100);body+=`<input class="rng ct" type="range" min="0" max="100" value="${q}" data-cap="light_temperature" aria-label="Fargetemperatur, kald til varm">`;cls+=' has-ct'}
   act='toggle'}
  else if(k==='thermo'){
   const t=c.target_temperature.value,m=c.measure_temperature?.value,on=c.onoff?c.onoff.value:true;
@@ -502,6 +524,7 @@ function renderSide(){
  const ins=ds.filter(d=>!isOut(d)&&typeof val(d,'measure_temperature')==='number').map(d=>val(d,'measure_temperature'));
  const WS={clear:'klart',sunny:'sol',cloudy:'overskyet','partly-cloudy':'lettskyet',partlycloudy:'lettskyet',rain:'regn',rainy:'regn',snow:'snø',snowy:'snø',fog:'tåke',foggy:'tåke',storm:'storm',thunderstorm:'torden',drizzle:'yr',wind:'vind',windy:'vind'};
  const wl=WS[String(S.wstate||'').toLowerCase()];
+ $('#wIc').innerHTML=S.met?wIcon(S.met.sym,S.met.night):'';
  if(S.met&&typeof S.met.t==='number'){$('#outT').textContent=f1(S.met.t)+'°';$('#outL').textContent='Ute'+(SYM[S.met.sym]?' · '+SYM[S.met.sym]:'')}
  else{$('#outT').textContent=typeof S.weather==='number'?f1(S.weather)+'°':(out.length?f1(avg(out))+'°':'–');$('#outL').textContent='Ute'+(typeof S.weather==='number'&&wl?' · '+wl:'')}$('#inT').textContent=ins.length?f1(avg(ins))+'°':'–';
  const p=power();$('#energy').style.display=p.has?'':'none';
@@ -569,6 +592,7 @@ const endDrag=()=>setTimeout(()=>{S.drag=null},1200);
 grid.addEventListener('pointerup',endDrag);grid.addEventListener('pointercancel',endDrag);
 grid.addEventListener('input',e=>{const r=e.target.closest('.rng');if(!r)return;const el=r.closest('.tile'),d=S.devices[el.dataset.id],cap=r.dataset.cap,v=+r.value/100;
  S.drag=d.id;r.style.setProperty('--p',r.value+'%');caps(d)[cap].value=v;S.lastSet[d.id+cap]=Date.now();
+ if(cap==='light_temperature'&&caps(d).light_mode)caps(d).light_mode.value='temperature';
  if(cap==='dim'){if(caps(d).onoff)caps(d).onoff.value=true;el.classList.add('on');el.querySelector('.st').textContent='På · '+r.value+' %'}
  else if(cap==='windowcoverings_set')el.querySelector('.st').textContent=r.value==='0'?'Lukket':r.value==='100'?'Åpen':'Åpen '+r.value+' %';
  later(d.id+cap,()=>send(d,cap,v),250)});
