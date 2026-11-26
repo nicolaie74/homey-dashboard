@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hjem">
+<meta name="theme-color" content="#101214">
+<title>Hjem – Homey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: rolig veggpanel – få farger, mye luft, store tall
+   IDEA: et fysisk brytersett i grafitt; tente fliser lyser opp som en lampe
+   PICTURE: rutenettet av enheter er selve bildet, gruppert per rom
+   COLOUR/TYPE: grafitt/varmhvit, korall for varme og varsler, isblå for fukt; Inter Tight
+   LAYOUT: liggende iPad: info-kolonne venstre, rom og fliser høyre; stående: stablet */
+:root{color-scheme:light dark;
+--bg:light-dark(#e9e6df,#101214);--panel:light-dark(#f8f6f1,#1a1d21);--panel2:light-dark(#efebe3,#24282d);
+--ink:light-dark(#16181b,#f1eee8);--mute:light-dark(#6d6b66,#8e939a);--line:light-dark(#d8d3c9,#2c3137);
+--on:light-dark(#1b1e22,#f3efe6);--onink:light-dark(#f3efe6,#17191c);--hot:#ff7a59;--cool:#7cc0e8}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 "Inter Tight",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--hot);outline-offset:2px}
+.app{display:grid;grid-template-columns:minmax(300px,31%) minmax(0,1fr);height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.side{overflow-y:auto;padding:26px 18px 28px 28px;display:flex;flex-direction:column;gap:14px}
+main{overflow-y:auto;padding:16px 28px 48px 10px}
+#time{font-size:clamp(64px,8vw,104px);font-weight:300;letter-spacing:-.045em;line-height:.95;font-variant-numeric:tabular-nums}
+#date{font-size:18px;color:var(--mute);margin-top:8px}#date::first-letter{text-transform:uppercase}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat,.card{background:var(--panel);border-radius:22px;padding:14px 16px}
+.stat b{display:block;font-size:30px;font-weight:500;letter-spacing:-.02em;line-height:1.15;white-space:nowrap}
+.lbl{font-size:13px;color:var(--mute)}
+.card{padding:18px}.card h3{margin:0 0 12px;font-size:16px;font-weight:600}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.big{margin-top:2px;white-space:nowrap}.big b{font-size:46px;font-weight:500;letter-spacing:-.035em;font-variant-numeric:tabular-nums}.big small{font-size:18px;color:var(--mute);margin-left:4px}
+.fig{position:relative;height:64px;margin:4px 0 6px}.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+.tu{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;font-size:13px;margin-top:9px}
+.tu span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tu b{font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tu i{grid-column:1/-1;height:4px;border-radius:2px;background:var(--line);position:relative;overflow:hidden}
+.tu i::after{content:"";position:absolute;inset:0 auto 0 0;width:var(--w);background:var(--hot);border-radius:2px}
+.scenes{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.scene{position:relative;display:flex;align-items:center;gap:10px;min-height:54px;padding:10px 14px;border-radius:16px;border:0;background:var(--panel2);font-weight:500;font-size:15px;line-height:1.2;text-align:left;transition:background .3s,color .3s}
+.scene svg{width:16px;height:16px;flex:none;color:var(--hot)}
+.scene.ran{background:var(--on);color:var(--onink)}
+.scene.hid,.tile.hid{opacity:.35}
+.empty{color:var(--mute);font-size:14px;margin:0}
+.bar{display:flex;gap:10px;align-items:center;position:sticky;top:0;z-index:3;background:var(--bg);padding:10px 0 10px}
+.zones{display:flex;gap:8px;overflow-x:auto;flex:1;scrollbar-width:none;padding:2px}.zones::-webkit-scrollbar{display:none}
+.chip,.tbtn{flex:none;min-height:44px;padding:0 16px;border-radius:22px;border:1px solid var(--line);background:transparent;font-weight:500;font-size:15px;display:inline-flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap}
+.chip small{color:var(--mute);font-weight:400;font-size:14px}
+.chip.sel{background:var(--ink);color:var(--bg);border-color:var(--ink)}.chip.sel small{color:inherit;opacity:.65}
+.tbtn{background:var(--panel);padding:0 14px}.tbtn svg{width:20px;height:20px}.tbtn.act{background:var(--ink);color:var(--bg)}
+.pill{flex:none;font-size:13px;min-height:32px;padding:0 12px;border-radius:16px;border:0;background:var(--panel2);color:var(--mute);display:inline-flex;gap:7px;align-items:center}
+.pill i{width:8px;height:8px;border-radius:50%;background:var(--mute)}.pill.live i{background:#5fcf8a}.pill.err i{background:var(--hot)}
+.summary{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0 14px;color:var(--mute);font-size:15px;min-height:44px}
+.summary .warnTxt{color:var(--hot);font-weight:500}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.zh{grid-column:1/-1;margin:20px 0 -2px;font-size:20px;font-weight:600;letter-spacing:-.01em;display:flex;gap:10px;align-items:baseline}
+.zh:first-child{margin-top:0}.zh span{font-size:15px;color:var(--mute);font-weight:400}
+.tile{position:relative;background:var(--panel);border-radius:22px;padding:14px 16px 14px;min-height:150px;display:flex;flex-direction:column;transition:background .28s,color .28s,transform .12s,box-shadow .28s}
+.tile[data-act]{cursor:pointer}.tile[data-act]:active{transform:scale(.97)}
+.tile.on{background:var(--on);color:var(--onink);box-shadow:0 10px 30px -12px rgb(255 190 120/.35)}
+.top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:auto;gap:8px}
+.ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--panel2);flex:none}
+.ic svg{width:21px;height:21px}
+.tile.on .ic{background:color-mix(in srgb,var(--hot) 16%,transparent);color:var(--hot)}
+.nm{font-weight:600;font-size:16px;line-height:1.2;margin-top:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st{font-size:14px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:20px}
+.tile.on .st{color:color-mix(in srgb,var(--onink) 62%,transparent)}
+.rd{font-size:30px;font-weight:500;letter-spacing:-.025em;line-height:1.1;margin-top:6px;white-space:nowrap}
+.tile.warn{box-shadow:inset 0 0 0 2px var(--hot)}.tile.warn .st,.tile.warn .rd{color:var(--hot)}
+.tile.off{opacity:.45}
+.w2{grid-column:span 2}
+.thermo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px}
+.tgt{font-size:36px;font-weight:500;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+.tile.heat .tgt,.tile.heat .ic{color:var(--hot)}
+.rb{width:48px;height:48px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--panel2);display:grid;place-items:center;padding:0}
+.rb svg{width:20px;height:20px}.tile.on .rb{border-color:color-mix(in srgb,var(--onink) 20%,transparent);background:transparent}
+.rb.sm{width:40px;height:40px}.rb.lit{background:var(--hot);color:#17191c;border-color:var(--hot)}
+.ctrls{display:flex;gap:8px;margin-top:8px;align-items:center}.ctrls .rng{flex:1;margin:0}
+.rng{-webkit-appearance:none;appearance:none;width:100%;height:32px;background:transparent;margin:6px 0 -6px;--p:50%;color:inherit}
+.rng::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:linear-gradient(to right,currentColor var(--p),color-mix(in srgb,currentColor 16%,transparent) var(--p))}
+.rng::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:var(--hot);margin-top:-10px;border:4px solid var(--panel)}
+.tile.on .rng::-webkit-slider-thumb{border-color:var(--on)}
+.rng::-moz-range-track{height:6px;border-radius:3px;background:color-mix(in srgb,currentColor 16%,transparent)}
+.rng::-moz-range-progress{height:6px;border-radius:3px;background:currentColor}
+.rng::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--hot);border:4px solid var(--panel)}
+.eye{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--panel2);display:grid;place-items:center;padding:0}.eye svg{width:18px;height:18px}
+.scene .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%)}
+.banner{background:var(--panel);border-radius:18px;padding:12px 16px;margin-bottom:14px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:15px}
+.modal{position:fixed;inset:0;background:rgb(0 0 0/.55);display:none;place-items:center;z-index:20;padding:20px}.modal.open{display:grid}
+.sheet{background:var(--panel);border-radius:26px;padding:26px;width:min(540px,100%);max-height:90dvh;overflow:auto;-webkit-user-select:text;user-select:text}
+.sheet h2{margin:0 0 4px;font-size:26px;font-weight:600;letter-spacing:-.02em}
+.sheet p,.sheet li{color:var(--mute);font-size:15px}
+.sheet label{display:block;font-size:14px;color:var(--mute);margin:16px 0 6px}
+.sheet input,.sheet select{width:100%;min-height:48px;font:16px inherit;border-radius:14px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:0 14px}
+.btns{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.msg{min-height:22px;font-size:14px;margin-top:12px}.msg.err{color:var(--hot)}
+details{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}summary{cursor:pointer;font-weight:500;min-height:32px}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translate(-50%,30px);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:16px;font-size:15px;opacity:0;pointer-events:none;transition:.3s;z-index:30;max-width:90vw}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.saver{position:fixed;inset:0;background:#050607;color:#cfcac0;z-index:40;display:none;place-content:center;text-align:center;gap:8px}
+.saver.show{display:grid}.saver .t{font-size:clamp(110px,18vw,220px);font-weight:300;letter-spacing:-.05em;line-height:1;font-variant-numeric:tabular-nums}
+.saver .d{font-size:22px;opacity:.6}.saver .x{font-size:22px;opacity:.8;margin-top:24px}
+@media(max-width:1000px){
+ body{overflow:auto}.app{display:block;height:auto}
+ .side{display:grid;grid-template-columns:1fr 1fr;overflow:visible;padding:22px 20px 6px;align-items:start}
+ main{overflow:visible;padding:4px 20px 48px}
+}
+@media(max-width:600px){.side{grid-template-columns:1fr}.grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}.tile{padding:12px 14px}.tgt{font-size:30px}.rb{width:44px;height:44px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="clock"><div id="time">--:--</div><div id="date"></div></div>
+    <div class="stats">
+      <div class="stat"><span class="lbl">Ute</span><b id="outT">–</b></div>
+      <div class="stat"><span class="lbl">Inne, snitt</span><b id="inT">–</b></div>
+    </div>
+    <section class="card" id="energy">
+      <div class="row"><span class="lbl">Strømforbruk nå</span><span class="lbl" id="powLbl"></span></div>
+      <div class="big"><b id="pow">–</b><small>W</small></div>
+      <div class="fig"><svg id="spark" aria-hidden="true"></svg></div>
+      <div id="topUse"></div>
+    </section>
+    <section class="card"><h3>Scener</h3><div id="scenes" class="scenes"></div></section>
+  </aside>
+  <main>
+    <header class="bar">
+      <nav id="zones" class="zones" aria-label="Rom"></nav>
+      <button class="pill" id="pill"><i></i><span>Demo</span></button>
+      <button class="tbtn" id="editBtn">Tilpass</button>
+      <button class="tbtn" id="setBtn" aria-label="Innstillinger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+    </header>
+    <div id="banner"></div>
+    <div id="summary" class="summary"></div>
+    <div id="grid" class="grid"></div>
+  </main>
+</div>
+
+<div class="modal" id="settings" role="dialog" aria-modal="true" aria-labelledby="sTitle">
+  <form class="sheet" id="sForm">
+    <h2 id="sTitle">Koble til Homey</h2>
+    <p>Du logger inn med Homey-kontoen din. Dashboardet trenger en egen API-klient fra Homey Developer Tools (gratis). Klientnøklene lagres bare i denne nettleseren.</p>
+    <label for="fRedir">Omdirigerings-URL (brukes når du lager API-klienten)</label>
+    <div style="display:flex;gap:8px"><input id="fRedir" readonly><button class="tbtn" type="button" id="fCopy">Kopier</button></div>
+    <label for="fCid">Client ID</label>
+    <input id="fCid" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <label for="fSec">Client Secret</label>
+    <input id="fSec" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <label for="fSaver">Skjermsparer med klokke</label>
+    <select id="fSaver"><option value="0">Av</option><option value="2">Etter 2 min</option><option value="5">Etter 5 min</option><option value="10">Etter 10 min</option><option value="30">Etter 30 min</option></select>
+    <div class="msg" id="fMsg"></div>
+    <div class="btns">
+      <button class="tbtn pri" type="submit">Logg inn med Homey</button>
+      <button class="tbtn" type="button" id="fDemo">Bruk demo</button>
+      <button class="tbtn" type="button" id="fOut">Logg ut</button>
+      <button class="tbtn" type="button" id="fClose">Lukk</button>
+    </div>
+    <details>
+      <summary>Slik lager du API-klienten</summary>
+      <ol>
+        <li>Gå til tools.developer.homey.app → API Clients og logg inn med Homey-kontoen.</li>
+        <li>Lag en ny klient. Lim inn omdirigerings-URL-en over som Callback/Redirect URL.</li>
+        <li>Gi den tilgang til enheter (se og styre), soner, Flows (se og starte) og vær.</li>
+        <li>Kopier Client ID og Client Secret hit, og trykk «Logg inn med Homey».</li>
+      </ol>
+    </details>
+  </form>
+</div>
+
+<div class="saver" id="saver"><div class="t" id="sT"></div><div class="d" id="sD"></div><div class="x" id="sX"></div></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+{
+const $=s=>document.querySelector(s);
+const K='homeyDash.v1';
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const f1=v=>(Math.round(v*10)/10).toLocaleString('nb-NO',{minimumFractionDigits:1,maximumFractionDigits:1});
+const nf=v=>Math.round(v).toLocaleString('nb-NO');
+const S={cfg:{clientId:'',clientSecret:'',demo:true,saver:5,hidden:[],hiddenFlows:[]},devices:{},zones:{},flows:[],zone:'all',edit:false,hist:[],lastSet:{},drag:null,status:'demo',sig:''};
+try{Object.assign(S.cfg,JSON.parse(localStorage.getItem(K)||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(S.cfg))}catch(e){}};
+
+const sv=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const I={
+ light:sv('<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2v.5h5V16c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/>'),
+ socket:sv('<path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4"/>'),
+ fan:sv('<circle cx="12" cy="12" r="1.6"/><path d="M12 10.4C11 6 12 3 14.5 3c2.4 0 2.6 3.6-1.2 7.6M13.6 12c4.4-1 7.4 0 7.4 2.5 0 2.4-3.6 2.6-7.6-1.2M12 13.6c1 4.4 0 7.4-2.5 7.4-2.4 0-2.6-3.6 1.2-7.6M10.4 12C6 13 3 12 3 9.5c0-2.4 3.6-2.6 7.6 1.2"/>'),
+ thermo:sv('<path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z"/><path d="M12 9v8"/>'),
+ sensor:sv('<circle cx="12" cy="12" r="2"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8"/>'),
+ lock:sv('<rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'),
+ unlock:sv('<rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 7.6-1.7"/>'),
+ blind:sv('<path d="M3.5 4h17M5 4v11h14V4M5 7.7h14M5 11.3h14M12 15v3"/><circle cx="12" cy="19.6" r="1.3"/>'),
+ media:sv('<rect x="6" y="3" width="12" height="18" rx="3"/><circle cx="12" cy="14" r="3"/><circle cx="12" cy="7.5" r=".9"/>'),
+ play:sv('<path d="M7 4.5v15l12.5-7.5z" fill="currentColor" stroke="none"/>'),
+ pause:sv('<path d="M8 5v14M16 5v14" stroke-width="3"/>'),
+ next:sv('<path d="M5 5l10 7-10 7zM19 5v14"/>'),prev:sv('<path d="M19 5L9 12l10 7zM5 5v14"/>'),
+ plus:sv('<path d="M12 5v14M5 12h14"/>'),minus:sv('<path d="M5 12h14"/>'),
+ up:sv('<path d="M6 15l6-6 6 6"/>'),down:sv('<path d="M6 9l6 6 6-6"/>'),stop:sv('<rect x="7" y="7" width="10" height="10" rx="1.5"/>'),
+ power:sv('<path d="M12 3v8M6.3 6.8a8 8 0 1 0 11.4 0"/>'),
+ eye:sv('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
+ eyeOff:sv('<path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/>')
+};
+
+const OUT=/(^|\s)(ute|utend|hage|terrasse|balkong|veranda|outdoor|garden)/i;
+const METER=/(dongle|pulse|\bhan\b|\bams\b|måler|meter|tibber|watty|hele huset)/i;
+const caps=d=>d.capabilitiesObj||{};
+const val=(d,c)=>caps(d)[c]?.value;
+function kind(d){const c=caps(d);
+ if(c.target_temperature)return'thermo';if(c.locked)return'lock';
+ if(c.windowcoverings_set||c.windowcoverings_state)return'blind';
+ if(c.speaker_playing||c.volume_set)return'media';
+ if(c.onoff){if(d.class==='light'||c.dim||c.light_hue)return'light';if(d.class==='fan')return'fan';if(d.class==='tv'||d.class==='speaker')return'media';return'socket'}
+ return'sensor'}
+const READ=[
+ ['alarm_water',v=>v?'Lekkasje!':'Tørt',v=>v],['alarm_smoke',v=>v?'Røyk!':'Ingen røyk',v=>v],['alarm_co',v=>v?'CO-alarm!':'OK',v=>v],
+ ['alarm_contact',v=>v?'Åpen':'Lukket',v=>v],['alarm_motion',v=>v?'Bevegelse':'Rolig'],
+ ['measure_temperature',v=>f1(v)+'°'],['measure_humidity',v=>nf(v)+' %'],['measure_co2',v=>nf(v)+' ppm'],
+ ['measure_luminance',v=>nf(v)+' lx'],['measure_power',v=>nf(v)+' W'],['measure_battery',v=>nf(v)+' % batteri',v=>v<20,v=>v<20]];
+function readings(d){const c=caps(d),out=[];for(const[k,fmt,alarm,only]of READ){const v=c[k]?.value;if(v==null||(only&&!only(v)))continue;out.push({k,t:fmt(v),a:!!(alarm&&alarm(v))})}return out}
+const zName=id=>S.zones[id]?.name||'';
+function isOut(d){let z=S.zones[d.zone],n=0;while(z&&n++<8){if(OUT.test(z.name))return true;z=S.zones[z.parent]}return false}
+const shown=d=>kind(d)!=='sensor'||readings(d).length>0;
+function avg(a){return a.length?a.reduce((s,v)=>s+v,0)/a.length:null}
+function zoneTemp(id){return avg(Object.values(S.devices).filter(d=>d.zone===id).map(d=>val(d,'measure_temperature')).filter(v=>typeof v==='number'))}
+
+/* ---------- Demo ---------- */
+function mk(id,name,zone,cls,cp){const o={};for(const[k,v]of Object.entries(cp))o[k]=(v&&typeof v==='object')?v:{value:v};return{id,name,zone,class:cls,capabilitiesObj:o,available:true}}
+function demoData(){
+ const Z=(id,name,parent=null)=>({id,name,parent});
+ S.zones=Object.fromEntries([Z('hjem','Hjem'),Z('stue','Stue','hjem'),Z('kjokken','Kjøkken','hjem'),Z('soverom','Soverom','hjem'),Z('bad','Bad','hjem'),Z('gang','Gang','hjem'),Z('kontor','Kontor','hjem'),Z('ute','Utendørs','hjem')].map(z=>[z.id,z]));
+ const tt=(v,min=5,max=30)=>({value:v,min,max,step:.5});
+ const list=[
+  mk('l1','Taklampe','stue','light',{onoff:true,dim:.7}),mk('l2','Leselampe','stue','light',{onoff:false,dim:.4}),
+  mk('t1','Varmepumpe','stue','thermostat',{target_temperature:tt(21,16,30),measure_temperature:21.4}),
+  mk('m1','Sonos','stue','speaker',{speaker_playing:true,volume_set:.25,speaker_track:'Nattevakt',speaker_artist:'Sigrid',speaker_next:false,speaker_prev:false}),
+  mk('b1','Gardiner','stue','curtain',{windowcoverings_set:1}),
+  mk('l3','Spotter','kjokken','light',{onoff:true,dim:1}),mk('l4','Benkebelysning','kjokken','light',{onoff:true}),
+  mk('s1','Kaffetrakter','kjokken','socket',{onoff:false,measure_power:0}),mk('c5','Lekkasje oppvask','kjokken','sensor',{alarm_water:false}),
+  mk('l5','Nattbordlampe','soverom','light',{onoff:false,dim:.3}),
+  mk('t3','Panelovn','soverom','heater',{onoff:true,target_temperature:tt(18),measure_temperature:18.6,measure_power:0}),
+  mk('c4','Klima soverom','soverom','sensor',{measure_temperature:18.6,measure_humidity:44}),
+  mk('l6','Speil','bad','light',{onoff:false}),
+  mk('t2','Varmekabler','bad','thermostat',{target_temperature:tt(24,5,35),measure_temperature:23.1,measure_power:380}),
+  mk('l7','Takspotter','gang','light',{onoff:false,dim:.6}),mk('k1','Ytterdør','gang','lock',{locked:true}),
+  mk('c1','Ytterdør','gang','sensor',{alarm_contact:false,measure_battery:82}),
+  mk('c2','Bevegelse','gang','sensor',{alarm_motion:false,measure_temperature:20.2,measure_luminance:35}),
+  mk('e1','Homey Energy Dongle','gang','sensor',{measure_power:2140}),
+  mk('s2','Skrivebord','kontor','socket',{onoff:true,measure_power:64}),
+  mk('c3','Klima kontor','kontor','sensor',{measure_temperature:21.8,measure_humidity:38}),
+  mk('l8','Fasadelys','ute','light',{onoff:true}),mk('o1','Utetemperatur','ute','sensor',{measure_temperature:-3.4,measure_humidity:81})];
+ list.find(d=>d.id==='e1').energyObj={cumulative:true};
+ S.devices=Object.fromEntries(list.map(d=>[d.id,d]));
+ S.flows=['God morgen','Hjemme','Middag','Film','Borte','God natt'].map((n,i)=>({id:'f'+i,name:n}));
+ for(let i=0;i<40;i++)S.hist.push(1250+Math.sin(i/5)*220+Math.random()*120);
+}
+function demoTick(){
+ const D=S.devices;if(!D.e1)return;
+ const c=id=>caps(D[id]);
+ if(Math.random()<.1)c('c2').alarm_motion.value=!c('c2').alarm_motion.value;
+ for(const id of['t1','t2','t3']){const x=c(id);const on=x.onoff?x.onoff.value:true;const goal=on?x.target_temperature.value:x.measure_temperature.value-.3;x.measure_temperature.value+= (goal-x.measure_temperature.value)*.06+(Math.random()-.5)*.04}
+ c('t2').measure_power.value=c('t2').measure_temperature.value<c('t2').target_temperature.value-.1?380:0;
+ c('t3').measure_power.value=c('t3').onoff.value&&c('t3').measure_temperature.value<c('t3').target_temperature.value-.1?800:0;
+ c('c4').measure_temperature.value=c('t3').measure_temperature.value;
+ c('s1').measure_power.value=c('s1').onoff.value?1420+Math.random()*60:0;
+ c('s2').measure_power.value=c('s2').onoff.value?52+Math.random()*20:0;
+ c('o1').measure_temperature.value+=(Math.random()-.5)*.08;
+ const lights=Object.values(D).filter(d=>kind(d)==='light'&&val(d,'onoff')).length;
+ c('e1').measure_power.value=650+Math.random()*160+lights*8+['s1','s2','t2','t3'].reduce((s,id)=>s+c(id).measure_power.value,0)+(c('t1').measure_temperature.value<c('t1').target_temperature.value-.1?900:120);
+}
+function demoScene(name){
+ const D=S.devices,set=(id,cap,v)=>{if(D[id]&&caps(D[id])[cap])caps(D[id])[cap].value=v};
+ const lights=Object.values(D).filter(d=>kind(d)==='light');
+ const n=name.toLowerCase();
+ if(n.includes('natt')||n.includes('borte')){lights.forEach(d=>set(d.id,'onoff',false));set('k1','locked',true);set('m1','speaker_playing',false);if(n.includes('natt'))set('l8','onoff',true)}
+ else if(n.includes('film')){set('l1','onoff',true);set('l1','dim',.15);set('l2','onoff',false);set('b1','windowcoverings_set',0);set('m1','speaker_playing',false)}
+ else if(n.includes('morgen')){['l3','l4','l7'].forEach(i=>set(i,'onoff',true));set('b1','windowcoverings_set',1);set('s1','onoff',true)}
+ else if(n.includes('middag')){set('l3','onoff',true);set('l3','dim',1);set('l1','onoff',true);set('l1','dim',.5);set('m1','speaker_playing',true)}
+ else if(n.includes('hjemme')){['l7','l1','l8'].forEach(i=>set(i,'onoff',true));set('k1','locked',true)}
+}
+
+/* ---------- Homey (innlogging med Homey-konto, sanntid via socket) ---------- */
+const LIB='https://cdn.athom.com/homey-api/3.21.3.js';
+const redirectUrl=()=>location.origin+location.pathname;
+let cloud=null,hapi=null,syncT=null;
+const WATCH=['onoff','dim','target_temperature','measure_temperature','measure_humidity','measure_power','measure_luminance','measure_co2','measure_battery','alarm_motion','alarm_contact','alarm_water','alarm_smoke','alarm_co','locked','windowcoverings_set','windowcoverings_state','speaker_playing','volume_set','speaker_track','speaker_artist'];
+function loadLib(){return window.AthomCloudAPI?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src=LIB;s.onload=res;s.onerror=()=>rej(new Error('Fikk ikke lastet Homey-biblioteket. Sjekk internett.'));document.head.appendChild(s)})}
+function makeCloud(){return new window.AthomCloudAPI({clientId:S.cfg.clientId,clientSecret:S.cfg.clientSecret,redirectUrl:redirectUrl()})}
+async function beginLogin(){await loadLib();cloud=makeCloud();location.href=cloud.getLoginUrl()}
+async function startLive(){
+ S.status='conn';renderStatus();
+ await loadLib();cloud=makeCloud();
+ if(cloud.hasAuthorizationCode())await cloud.authenticateWithAuthorizationCode();
+ if(!(await cloud.isLoggedIn())){const e=new Error('Du må logge inn med Homey-kontoen din.');e.needLogin=true;throw e}
+ const user=await cloud.getAuthenticatedUser();
+ const hs=user.getHomeys();if(!hs.length)throw new Error('Fant ingen Homey på kontoen.');
+ const homey=hs.find(h=>h.id===S.cfg.homeyId)||hs[0];S.cfg.homeyId=homey.id;save();
+ hapi=await homey.authenticate();
+ await loadAll();
+ S.status='live';S.cfg.demo=false;save();
+ clearInterval(syncT);syncT=setInterval(()=>{if(!document.hidden)loadAll().then(update).catch(()=>{})},300000);
+}
+function watch(d){
+ if(d.__watched||typeof d.makeCapabilityInstance!=='function')return;d.__watched=true;
+ for(const cap of WATCH){if(!caps(d)[cap])continue;
+  try{d.makeCapabilityInstance(cap,v=>{const c=caps(d)[cap];if(!c)return;const t=S.lastSet[d.id+cap];if(t&&Date.now()-t<3000)return;c.value=v;later('rt'+d.id,()=>{refreshTile(d.id);later('rtside',()=>{renderSide();renderSummary();pushHist()},400)},120)})}catch(e){}}}
+async function loadAll(){
+ const [dev,zon]=await Promise.all([hapi.devices.getDevices(),hapi.zones.getZones()]);
+ S.devices=dev||{};S.zones=zon||{};
+ Object.values(S.devices).filter(shown).forEach(watch);
+ try{const w=await hapi.weather.getWeather();S.weather=typeof w?.temperature==='number'?w.temperature:null}catch(e){S.weather=null}
+ try{const me=await hapi.users.getUserMe();const p=me?.properties||{};S.favDevices=Array.isArray(p.favoriteDevices)?p.favoriteDevices:[];S.favFlows=Array.isArray(p.favoriteFlows)?p.favoriteFlows:[]}catch(e){S.favDevices=[];S.favFlows=[]}
+ const out=[];
+ const add=(o,adv)=>{for(const f of Object.values(o||{}))if(f.enabled!==false&&(f.triggerable||S.favFlows.includes(f.id)))out.push({id:f.id,name:f.name,adv,fav:S.favFlows.includes(f.id)})};
+ try{add(await hapi.flow.getFlows(),false)}catch(e){}
+ try{add(await hapi.flow.getAdvancedFlows(),true)}catch(e){}
+ S.flows=out.sort((a,b)=>(b.fav-a.fav)||a.name.localeCompare(b.name,'nb'));
+ if(!S.cfg.flowsInit&&S.flows.some(f=>f.fav)){S.cfg.hiddenFlows=S.flows.filter(f=>!f.fav).map(f=>f.id);S.cfg.flowsInit=true;save()}
+}
+async function logout(){try{if(cloud)await cloud.logout()}catch(e){}clearInterval(syncT);hapi=null;S.cfg.demo=true;save();location.replace(redirectUrl())}
+
+/* ---------- Control ---------- */
+let toastT;function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2600)}
+const timers={};const later=(k,fn,ms)=>{clearTimeout(timers[k]);timers[k]=setTimeout(fn,ms)};
+async function send(d,cap,v){
+ S.lastSet[d.id+cap]=Date.now();
+ if(S.cfg.demo){if(cap==='speaker_next'||cap==='speaker_prev'){const c=caps(d);c.speaker_track.value=['Nattevakt','Strangers','Mine Right Now','Don’t Kill My Vibe'][Math.floor(Math.random()*4)]}return}
+ try{if(!hapi)throw new Error('ikke tilkoblet');await hapi.devices.setCapabilityValue({deviceId:d.id,capabilityId:cap,value:v})}
+ catch(e){toast(`Kunne ikke styre ${d.name}: ${e.message}`);S.lastSet[d.id+cap]=0;loadAll().then(update).catch(()=>{})}
+}
+function setCap(d,cap,v){const c=caps(d)[cap];if(!c)return;c.value=v;if(cap==='dim'&&caps(d).onoff)caps(d).onoff.value=v>0;refreshTile(d.id);renderSide();renderSummary();send(d,cap,v)}
+function bumpTemp(d,dir){const tc=caps(d).target_temperature,st=tc.step||.5;
+ let v=Math.round((tc.value+dir*st)/st)*st;v=Math.min(tc.max??35,Math.max(tc.min??5,v));tc.value=v;S.lastSet[d.id+'target_temperature']=Date.now();refreshTile(d.id);
+ later(d.id+'tt',()=>send(d,'target_temperature',v),700)}
+function lockTap(d,el){const locked=val(d,'locked');
+ if(!locked){setCap(d,'locked',true);return}
+ if(el.dataset.arm){delete el.dataset.arm;setCap(d,'locked',false);return}
+ el.dataset.arm='1';el.querySelector('.st').textContent='Trykk igjen for å låse opp';
+ setTimeout(()=>{if(el.isConnected&&el.dataset.arm){delete el.dataset.arm;refreshTile(d.id)}},3000)}
+async function runFlow(f,btn){
+ btn.classList.add('ran');setTimeout(()=>btn.classList.remove('ran'),1400);
+ if(S.cfg.demo){demoScene(f.name);demoTick();update();toast(`«${f.name}» startet`);return}
+ try{if(!hapi)throw new Error('ikke tilkoblet');await (f.adv?hapi.flow.triggerAdvancedFlow({id:f.id}):hapi.flow.triggerFlow({id:f.id}));toast(`«${f.name}» startet`)}
+ catch(e){toast(`Kunne ikke starte «${f.name}»: ${e.message}`)}}
+
+/* ---------- Render ---------- */
+const inZone=d=>S.zone==='all'||(S.zone==='fav'?(S.favDevices||[]).includes(d.id):d.zone===S.zone);
+const ORDER={light:0,socket:1,fan:1,media:2,thermo:3,blind:4,lock:5,sensor:6};
+function list(){
+ const z=Object.keys(S.zones);
+ return Object.values(S.devices).filter(d=>shown(d)&&(S.edit||!S.cfg.hidden.includes(d.id))&&inZone(d))
+ .sort((a,b)=>(z.indexOf(a.zone)-z.indexOf(b.zone))||(ORDER[kind(a)]-ORDER[kind(b)])||String(a.name).localeCompare(b.name,'nb'))}
+function tile(d){
+ const k=kind(d),c=caps(d),hid=S.cfg.hidden.includes(d.id);
+ let cls='tile k-'+k,body='',st='',act='',lit=false,ic=I[k]||I.sensor;
+ const pw=c.measure_power?.value;
+ if(k==='light'||k==='socket'||k==='fan'){
+  lit=!!c.onoff.value;st=lit?(c.dim?'På · '+Math.round(c.dim.value*100)+' %':'På'):'Av';
+  if(lit&&pw>1)st+=' · '+nf(pw)+' W';
+  if(c.dim){const p=Math.round((c.dim.value||0)*100);body=`<input class="rng" type="range" min="1" max="100" value="${p}" style="--p:${p}%" data-cap="dim" aria-label="Lysstyrke">`}
+  act='toggle'}
+ else if(k==='thermo'){
+  const t=c.target_temperature.value,m=c.measure_temperature?.value,on=c.onoff?c.onoff.value:true;
+  st=(m!=null?'Nå '+f1(m)+'°':'')+(pw>1?' · '+nf(pw)+' W':'')+(on?'':' · Av');
+  if(on&&m!=null&&m<t-.15)cls+=' heat';
+  cls+=' w2';
+  body=`<div class="thermo"><button class="rb ctl" data-step="-1" aria-label="Senk temperatur">${I.minus}</button><b class="tgt">${f1(t)}°</b><button class="rb ctl" data-step="1" aria-label="Øk temperatur">${I.plus}</button></div>`;
+  if(c.onoff)ic=I.thermo}
+ else if(k==='lock'){const l=!!c.locked.value;st=l?'Låst':'Ulåst';ic=l?I.lock:I.unlock;if(!l)cls+=' warn';act='lock'}
+ else if(k==='blind'){cls+=' w2';
+  if(c.windowcoverings_set){const p=Math.round((c.windowcoverings_set.value||0)*100);st=p<=0?'Lukket':p>=100?'Åpen':'Åpen '+p+' %';
+   body=`<input class="rng" type="range" min="0" max="100" value="${p}" style="--p:${p}%" data-cap="windowcoverings_set" aria-label="Åpning">`}
+  else{const s=c.windowcoverings_state.value;st=s==='up'?'Går opp':s==='down'?'Går ned':'Stoppet'}
+  if(c.windowcoverings_state)body+=`<div class="ctrls"><button class="rb sm ctl" data-blind="up" aria-label="Opp">${I.up}</button><button class="rb sm ctl" data-blind="idle" aria-label="Stopp">${I.stop}</button><button class="rb sm ctl" data-blind="down" aria-label="Ned">${I.down}</button></div>`}
+ else if(k==='media'){cls+=' w2';
+  const pl=c.speaker_playing?.value,tr=c.speaker_track?.value,ar=c.speaker_artist?.value;
+  if(c.speaker_playing){lit=!!pl;st=pl?(tr?tr+(ar?' – '+ar:''):'Spiller'):'Pause'}
+  else{lit=!!c.onoff?.value;st=lit?'På':'Av';act='toggle'}
+  let b='';
+  if(c.speaker_prev)b+=`<button class="rb sm ctl" data-cmd="speaker_prev" aria-label="Forrige">${I.prev}</button>`;
+  if(c.speaker_playing)b+=`<button class="rb ctl" data-cmd="play" aria-label="${pl?'Pause':'Spill'}">${pl?I.pause:I.play}</button>`;
+  if(c.speaker_next)b+=`<button class="rb sm ctl" data-cmd="speaker_next" aria-label="Neste">${I.next}</button>`;
+  if(c.volume_set){const p=Math.round((c.volume_set.value||0)*100);b+=`<input class="rng" type="range" min="0" max="100" value="${p}" style="--p:${p}%" data-cap="volume_set" aria-label="Volum">`}
+  if(b)body=`<div class="ctrls">${b}</div>`}
+ else{const r=readings(d);if(r.some(x=>x.a))cls+=' warn';
+  if(r[0]){body=`<div class="rd">${esc(r[0].t)}</div>`;st=r.slice(1).map(x=>x.t).join(' · ')}}
+ const pwrBtn=(k==='thermo'&&c.onoff)?`<button class="rb sm ctl${c.onoff.value?' lit':''}" data-pw="1" aria-label="Av/på">${I.power}</button>`:'';
+ const eye=S.edit?`<button class="eye" data-eye aria-label="${hid?'Vis':'Skjul'} ${esc(d.name)}">${hid?I.eyeOff:I.eye}</button>`:'';
+ if(lit)cls+=' on';if(hid)cls+=' hid';if(d.available===false){cls+=' off';st='Utilgjengelig'}
+ const a=act&&!S.edit?` data-act="${act}" role="button" tabindex="0" aria-pressed="${lit}"`:'';
+ return `<div class="${cls}" data-id="${esc(d.id)}"${a}><div class="top"><span class="ic">${ic}</span>${eye||pwrBtn}</div><div class="nm">${esc(d.name)}</div><div class="st">${esc(st)}</div>${body}</div>`}
+function renderGrid(){
+ const ds=list();let html='',last=null;
+ for(const d of ds){if(S.zone==='all'&&d.zone!==last){last=d.zone;const t=zoneTemp(d.zone);html+=`<h2 class="zh">${esc(zName(d.zone)||'Uten rom')}${t!=null?`<span>${f1(t)}°</span>`:''}</h2>`}html+=tile(d)}
+ $('#grid').innerHTML=html||'<p class="empty">Ingen enheter her ennå.</p>';
+ S.sig=S.zone+'|'+S.edit+'|'+ds.map(d=>d.id).join(',')}
+function refreshTile(id){
+ const el=$('#grid').querySelector(`[data-id="${CSS.escape(id)}"]`),d=S.devices[id];
+ if(!el||!d||S.drag===id||el.dataset.arm)return;el.outerHTML=tile(d)}
+function renderZones(){
+ const used=[...new Set(Object.values(S.devices).filter(d=>shown(d)&&!S.cfg.hidden.includes(d.id)).map(d=>d.zone))];
+ const z=Object.keys(S.zones).filter(id=>used.includes(id));
+ const fav=(S.favDevices||[]).some(id=>S.devices[id]);
+ if(S.zone!=='all'&&!(S.zone==='fav'&&fav)&&!z.includes(S.zone))S.zone='all';
+ $('#zones').innerHTML=(fav?[`<button class="chip${S.zone==='fav'?' sel':''}" data-z="fav">Favoritter</button>`]:[]).concat([`<button class="chip${S.zone==='all'?' sel':''}" data-z="all">Alle rom</button>`]).concat(z.map(id=>{const t=zoneTemp(id);return `<button class="chip${S.zone===id?' sel':''}" data-z="${esc(id)}">${esc(zName(id))}${t!=null?`<small>${f1(t)}°</small>`:''}</button>`})).join('')}
+function renderSummary(){
+ const ds=Object.values(S.devices).filter(d=>shown(d)&&!S.cfg.hidden.includes(d.id)&&inZone(d));
+ const lightsOn=ds.filter(d=>kind(d)==='light'&&val(d,'onoff'));
+ const warn=ds.filter(d=>readings(d).some(r=>r.a)||(kind(d)==='lock'&&!val(d,'locked'))).map(d=>{const r=readings(d).find(x=>x.a);return d.name+' '+(r?r.t.toLowerCase().replace('!',''):'ulåst')});
+ const parts=[lightsOn.length?`${lightsOn.length} lys på`:'Alle lys er av'];
+ $('#summary').innerHTML=`<span>${esc(parts.join(''))}</span>${warn.length?`<span class="warnTxt">${esc(warn.join(' · '))}</span>`:''}${lightsOn.length&&!S.edit?`<button class="tbtn" id="allOff">${I.power} Slå av lys${S.zone==='all'?'':' her'}</button>`:''}`}
+function renderScenes(){
+ const fl=S.flows.filter(f=>S.edit||!S.cfg.hiddenFlows.includes(f.id));
+ $('#scenes').innerHTML=fl.length?fl.map(f=>{const h=S.cfg.hiddenFlows.includes(f.id);return `<button class="scene${h?' hid':''}" data-flow="${esc(f.id)}">${I.play}<span>${esc(f.name)}</span>${S.edit?`<span class="eye">${h?I.eyeOff:I.eye}</span>`:''}</button>`}).join(''):'<p class="empty">Ingen Flows kan startes manuelt ennå. Flows som kan startes fra appen dukker opp her.</p>'}
+function power(){
+ const ds=Object.values(S.devices).filter(d=>typeof val(d,'measure_power')==='number');
+ const meter=ds.find(d=>d.energyObj?.cumulative||METER.test(d.name));
+ const total=meter?val(meter,'measure_power'):ds.reduce((s,d)=>s+Math.max(0,val(d,'measure_power')),0);
+ const top=ds.filter(d=>d!==meter&&val(d,'measure_power')>1).sort((a,b)=>val(b,'measure_power')-val(a,'measure_power')).slice(0,4);
+ return{has:ds.length>0,total,label:meter?'Hele huset':'Målte enheter',top}}
+function renderSide(){
+ const ds=Object.values(S.devices);
+ const out=ds.filter(d=>isOut(d)&&typeof val(d,'measure_temperature')==='number').map(d=>val(d,'measure_temperature'));
+ const ins=ds.filter(d=>!isOut(d)&&typeof val(d,'measure_temperature')==='number').map(d=>val(d,'measure_temperature'));
+ $('#outT').textContent=out.length?f1(avg(out))+'°':(typeof S.weather==='number'?f1(S.weather)+'°':'–');$('#inT').textContent=ins.length?f1(avg(ins))+'°':'–';
+ const p=power();$('#energy').style.display=p.has?'':'none';
+ $('#pow').textContent=nf(p.total);$('#powLbl').textContent=p.label;
+ const mx=Math.max(p.total,...p.top.map(d=>val(d,'measure_power')),1);
+ $('#topUse').innerHTML=p.top.map(d=>{const w=val(d,'measure_power');return `<div class="tu"><span>${esc(d.name)}</span><b>${nf(w)} W</b><i style="--w:${Math.min(100,w/mx*100).toFixed(1)}%"></i></div>`}).join('');
+ drawSpark()}
+const sp=$('#spark');
+function drawSpark(){
+ const W=sp.clientWidth,H=sp.clientHeight,h=S.hist;if(!W||h.length<2){sp.innerHTML='';return}
+ const mn=Math.min(...h)*.9,mx=Math.max(...h)*1.05,rg=Math.max(mx-mn,1);
+ const pts=h.map((v,i)=>[i/(h.length-1)*W,H-4-(v-mn)/rg*(H-10)]);
+ const line=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join('');
+ const lp=pts[pts.length-1];
+ sp.innerHTML=`<defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7a59" stop-opacity=".32"/><stop offset="1" stop-color="#ff7a59" stop-opacity="0"/></linearGradient></defs><path d="${line}L${W} ${H}L0 ${H}Z" fill="url(#sg)"/><path d="${line}" fill="none" stroke="#ff7a59" stroke-width="2" stroke-linejoin="round"/><circle cx="${lp[0].toFixed(1)}" cy="${lp[1].toFixed(1)}" r="4" fill="#ff7a59"/>`}
+const spRO=new ResizeObserver(drawSpark);spRO.observe(sp);
+function renderStatus(){
+ const p=$('#pill');p.className='pill '+(S.status==='live'?'live':(S.status==='err'||S.status==='login')?'err':'');
+ p.querySelector('span').textContent={live:'Tilkoblet',err:'Frakoblet',login:'Ikke logget inn',conn:'Kobler til …'}[S.status]||'Demo';
+ const B=(t,b,id)=>`<div class="banner"><span>${esc(t)}</span><button class="tbtn pri" id="${id}">${esc(b)}</button></div>`;
+ $('#banner').innerHTML=S.status==='login'?B('Innloggingen mot Homey har gått ut.','Logg inn igjen','bLogin'):S.status==='err'?B('Fikk ikke kontakt med Homey: '+(S.err||''),'Prøv igjen','bRetry'):S.status==='conn'?'':S.cfg.demo?B('Du ser demodata. Logg inn med Homey-kontoen din for å styre ekte enheter.','Koble til','bConnect'):'';
+ $('#editBtn').classList.toggle('act',S.edit);$('#editBtn').textContent=S.edit?'Ferdig':'Tilpass'}
+function update(){
+ const ds=list(),sig=S.zone+'|'+S.edit+'|'+ds.map(d=>d.id).join(',');
+ if(sig!==S.sig){renderGrid();renderZones()}else{ds.forEach(d=>refreshTile(d.id));if(Math.random()<.2)renderZones()}
+ renderSide();renderSummary()}
+function renderAll(){renderZones();renderGrid();renderScenes();renderSide();renderSummary();renderStatus()}
+
+/* ---------- Loop ---------- */
+let loopT,lastPush=0;
+function pushHist(force){if(!force&&Date.now()-lastPush<10000)return;lastPush=Date.now();const p=power();if(p.has){S.hist.push(p.total);if(S.hist.length>90)S.hist.shift();drawSpark()}}
+function tick(){
+ clearTimeout(loopT);
+ if(!document.hidden){
+  if(S.cfg.demo){demoTick();S.status='demo';pushHist(true);update()}
+  else if(S.status==='live'){pushHist(true);renderSide()}
+  renderStatus()}
+ loopT=setTimeout(tick,S.cfg.demo?3000:30000)}
+function clock(){const n=new Date();const t=n.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'});const d=n.toLocaleDateString('nb-NO',{weekday:'long',day:'numeric',month:'long'});
+ $('#time').textContent=t;$('#date').textContent=d;$('#sT').textContent=t;$('#sD').textContent=d;
+ const p=power();$('#sX').textContent=[$('#outT').textContent!=='–'?'Ute '+$('#outT').textContent:'',p.has?nf(p.total)+' W':''].filter(Boolean).join('   ·   ');
+ if(S.cfg.saver>0&&Date.now()-lastTouch>S.cfg.saver*60000&&!$('#settings').classList.contains('open'))$('#saver').classList.add('show')}
+let lastTouch=Date.now();
+document.addEventListener('pointerdown',()=>{lastTouch=Date.now()},true);
+$('#saver').addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();$('#saver').classList.remove('show')});
+
+/* ---------- Events ---------- */
+const grid=$('#grid');
+grid.addEventListener('click',e=>{
+ const t=e.target,el=t.closest('.tile');if(!el)return;const d=S.devices[el.dataset.id];if(!d)return;
+ if(t.closest('[data-eye]')){const h=S.cfg.hidden,i=h.indexOf(d.id);i<0?h.push(d.id):h.splice(i,1);save();el.outerHTML=tile(d);return}
+ if(S.edit||t.closest('input'))return;
+ const b=t.closest('button.ctl');
+ if(b){if(b.dataset.step)bumpTemp(d,+b.dataset.step);
+  else if(b.dataset.pw)setCap(d,'onoff',!val(d,'onoff'));
+  else if(b.dataset.blind)setCap(d,'windowcoverings_state',b.dataset.blind);
+  else if(b.dataset.cmd==='play')setCap(d,'speaker_playing',!val(d,'speaker_playing'));
+  else if(b.dataset.cmd){send(d,b.dataset.cmd,true).then(()=>setTimeout(()=>refreshTile(d.id),200))}
+  return}
+ if(el.dataset.act==='toggle')setCap(d,'onoff',!val(d,'onoff'));
+ else if(el.dataset.act==='lock')lockTap(d,el)});
+grid.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches('.tile[data-act]')){e.preventDefault();e.target.click()}});
+grid.addEventListener('pointerdown',e=>{const r=e.target.closest('.rng');if(r)S.drag=r.closest('.tile').dataset.id});
+const endDrag=()=>setTimeout(()=>{S.drag=null},1200);
+grid.addEventListener('pointerup',endDrag);grid.addEventListener('pointercancel',endDrag);
+grid.addEventListener('input',e=>{const r=e.target.closest('.rng');if(!r)return;const el=r.closest('.tile'),d=S.devices[el.dataset.id],cap=r.dataset.cap,v=+r.value/100;
+ S.drag=d.id;r.style.setProperty('--p',r.value+'%');caps(d)[cap].value=v;S.lastSet[d.id+cap]=Date.now();
+ if(cap==='dim'){if(caps(d).onoff)caps(d).onoff.value=true;el.classList.add('on');el.querySelector('.st').textContent='På · '+r.value+' %'}
+ else if(cap==='windowcoverings_set')el.querySelector('.st').textContent=r.value==='0'?'Lukket':r.value==='100'?'Åpen':'Åpen '+r.value+' %';
+ later(d.id+cap,()=>send(d,cap,v),250)});
+grid.addEventListener('change',e=>{const r=e.target.closest('.rng');if(!r)return;const d=S.devices[r.closest('.tile').dataset.id];later(d.id+r.dataset.cap,()=>send(d,r.dataset.cap,+r.value/100),0);renderSummary();endDrag()});
+$('#zones').addEventListener('click',e=>{const b=e.target.closest('[data-z]');if(!b)return;S.zone=b.dataset.z;renderZones();renderGrid();renderSummary();$('main').scrollTop=0});
+$('#scenes').addEventListener('click',e=>{const b=e.target.closest('[data-flow]');if(!b)return;const f=S.flows.find(x=>x.id===b.dataset.flow);if(!f)return;
+ if(S.edit){const h=S.cfg.hiddenFlows,i=h.indexOf(f.id);i<0?h.push(f.id):h.splice(i,1);save();renderScenes();return}runFlow(f,b)});
+$('#summary').addEventListener('click',e=>{if(!e.target.closest('#allOff'))return;
+ Object.values(S.devices).filter(d=>kind(d)==='light'&&val(d,'onoff')&&!S.cfg.hidden.includes(d.id)&&inZone(d)).forEach(d=>setCap(d,'onoff',false))});
+$('#editBtn').addEventListener('click',()=>{S.edit=!S.edit;renderAll()});
+const openSet=()=>{$('#fRedir').value=redirectUrl();$('#fCid').value=S.cfg.clientId||'';$('#fSec').value=S.cfg.clientSecret||'';$('#fSaver').value=String(S.cfg.saver);$('#fOut').style.display=S.cfg.demo?'none':'';const m=$('#fMsg');m.className='msg'+(S.err?' err':'');m.textContent=S.err||'';$('#settings').classList.add('open')};
+const closeSet=()=>$('#settings').classList.remove('open');
+$('#setBtn').addEventListener('click',openSet);$('#pill').addEventListener('click',openSet);
+$('#banner').addEventListener('click',e=>{if(e.target.closest('#bConnect'))openSet();else if(e.target.closest('#bLogin'))beginLogin().catch(err=>toast(err.message));else if(e.target.closest('#bRetry'))goLive()});
+$('#fClose').addEventListener('click',closeSet);
+$('#fCopy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(redirectUrl());toast('Kopiert')}catch(e){$('#fRedir').select()}});
+$('#settings').addEventListener('click',e=>{if(e.target.id==='settings')closeSet()});
+$('#fSaver').addEventListener('change',e=>{S.cfg.saver=+e.target.value;save()});
+$('#fDemo').addEventListener('click',()=>{S.cfg.demo=true;S.status='demo';S.err='';save();S.hist=[];demoData();closeSet();renderAll();tick()});
+$('#fOut').addEventListener('click',()=>logout());
+$('#sForm').addEventListener('submit',async e=>{e.preventDefault();
+ const m=$('#fMsg'),cid=$('#fCid').value.trim(),sec=$('#fSec').value.trim();
+ if(!cid||!sec){m.className='msg err';m.textContent='Fyll inn både Client ID og Client Secret.';return}
+ if(location.protocol==='file:'){m.className='msg err';m.textContent='Innlogging virker bare når siden ligger på en nettadresse (https://…), ikke som lokal fil.';return}
+ S.cfg.clientId=cid;S.cfg.clientSecret=sec;S.cfg.demo=false;save();m.className='msg';m.textContent='Sender deg til Homey-innlogging …';
+ try{await beginLogin()}catch(err){m.className='msg err';m.textContent=err.message}});
+async function goLive(){
+ try{await startLive();S.err='';renderAll();tick()}
+ catch(e){S.err=e.message||String(e);S.status=e.needLogin||/401|unauthori|invalid_grant|token/i.test(S.err)?'login':'err';
+  if(!Object.keys(S.devices).length){demoData()}renderAll()}}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(hapi&&S.status==='live')loadAll().then(()=>{renderAll()}).catch(()=>{});tick()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSet()});
+let wl=null;document.addEventListener('pointerdown',async()=>{try{if(!wl&&navigator.wakeLock){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}}catch(e){}},true);
+
+/* ---------- Start ---------- */
+const hasCode=new URLSearchParams(location.search).has('code');
+if(S.cfg.clientId&&S.cfg.clientSecret&&(!S.cfg.demo||hasCode)){S.cfg.demo=false;S.status='conn';renderAll();clock();goLive()}
+else{S.cfg.demo=true;demoData();renderAll();tick()}
+clock();setInterval(clock,5000);
+}
+</script>
+</body>
+</html>
