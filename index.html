@@ -282,7 +282,9 @@ const zName=id=>S.zones[id]?.name||'';
 function isOut(d){let z=S.zones[d.zone],n=0;while(z&&n++<8){if(OUT.test(z.name))return true;z=S.zones[z.parent]}return false}
 const shown=d=>kind(d)!=='sensor'||readings(d).length>0;
 function avg(a){return a.length?a.reduce((s,v)=>s+v,0)/a.length:null}
-function zoneTemp(id){return avg(Object.values(S.devices).filter(d=>d.zone===id).map(d=>val(d,'measure_temperature')).filter(v=>typeof v==='number'))}
+const NOROOM=['socket','light','fan','speaker','tv','homey','button','remote','windowcoverings','blinds','curtain','lock','amplifier','vacuumcleaner','kettle','coffeemachine','oven','dishwasher','washer','dryer','fridge','freezer'];
+const roomT=d=>!NOROOM.includes(d.class)&&d.available!==false;
+function zoneTemp(id){return avg(Object.values(S.devices).filter(d=>d.zone===id&&roomT(d)).map(d=>val(d,'measure_temperature')).filter(v=>typeof v==='number'))}
 
 /* ---------- Demo ---------- */
 function mk(id,name,zone,cls,cp){const o={};for(const[k,v]of Object.entries(cp))o[k]=(v&&typeof v==='object')?v:{value:v};return{id,name,zone,class:cls,capabilitiesObj:o,available:true}}
@@ -520,8 +522,8 @@ function power(){
  return{has:ds.length>0,total,label:meter?'Hele huset':'Målte enheter',top}}
 function renderSide(){
  const ds=Object.values(S.devices);
- const out=ds.filter(d=>isOut(d)&&typeof val(d,'measure_temperature')==='number').map(d=>val(d,'measure_temperature'));
- const ins=ds.filter(d=>!isOut(d)&&typeof val(d,'measure_temperature')==='number').map(d=>val(d,'measure_temperature'));
+ const out=ds.filter(d=>isOut(d)&&roomT(d)&&typeof val(d,'measure_temperature')==='number').map(d=>val(d,'measure_temperature'));
+ const ins=ds.filter(d=>!isOut(d)&&roomT(d)&&typeof val(d,'measure_temperature')==='number').map(d=>val(d,'measure_temperature'));
  const WS={clear:'klart',sunny:'sol',cloudy:'overskyet','partly-cloudy':'lettskyet',partlycloudy:'lettskyet',rain:'regn',rainy:'regn',snow:'snø',snowy:'snø',fog:'tåke',foggy:'tåke',storm:'storm',thunderstorm:'torden',drizzle:'yr',wind:'vind',windy:'vind'};
  const wl=WS[String(S.wstate||'').toLowerCase()];
  $('#wIc').innerHTML=S.met?wIcon(S.met.sym,S.met.night):'';
