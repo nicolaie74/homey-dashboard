@@ -169,6 +169,9 @@ details{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}summar
     <input id="fCid" autocomplete="off" autocapitalize="off" spellcheck="false">
     <label for="fSec">Client Secret</label>
     <input id="fSec" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <label for="fPlace">Sted for utetemperatur (fra Meteorologisk institutt)</label>
+    <div style="display:flex;gap:8px"><input id="fPlace" placeholder="F.eks. Oslo eller 0150" autocomplete="off"><button class="tbtn" type="button" id="fFind">Finn</button></div>
+    <div class="msg" id="fPlaceMsg"></div>
     <label for="fSaver">Skjermsparer med klokke</label>
     <select id="fSaver"><option value="0">Av</option><option value="2">Etter 2 min</option><option value="5">Etter 5 min</option><option value="10">Etter 10 min</option><option value="30">Etter 30 min</option></select>
     <div class="msg" id="fMsg"></div>
@@ -343,6 +346,22 @@ async function loadAll(){
 }
 async function logout(){try{if(cloud)await cloud.logout()}catch(e){}clearInterval(syncT);hapi=null;S.cfg.demo=true;save();location.replace(redirectUrl())}
 
+/* ---------- Vær fra MET (api.met.no) ---------- */
+const SYM={clearsky:'klarvær',fair:'lettskyet',partlycloudy:'delvis skyet',cloudy:'skyet',fog:'tåke',lightrain:'lett regn',rain:'regn',heavyrain:'kraftig regn',lightrainshowers:'regnbyger',rainshowers:'regnbyger',heavyrainshowers:'kraftige byger',lightsleet:'lett sludd',sleet:'sludd',heavysleet:'kraftig sludd',lightsleetshowers:'sluddbyger',sleetshowers:'sluddbyger',lightsnow:'lett snø',snow:'snø',heavysnow:'kraftig snø',lightsnowshowers:'snøbyger',snowshowers:'snøbyger',heavysnowshowers:'kraftige snøbyger'};
+async function loadMet(){
+ if(!S.cfg.met)return;
+ try{const {lat,lon}=S.cfg.met;const r=await fetch(`https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${(+lat).toFixed(3)}&lon=${(+lon).toFixed(3)}`);
+  if(!r.ok)throw new Error(r.status);const j=await r.json();const ts=j.properties.timeseries[0].data;
+  S.met={t:ts.instant.details.air_temperature,sym:String(ts.next_1_hours?.summary?.symbol_code||'').replace(/_(day|night|polartwilight)$/,'')};
+  renderSide()}catch(e){}}
+async function findPlace(){
+ const q=$('#fPlace').value.trim(),m=$('#fPlaceMsg');if(!q)return;m.className='msg';m.textContent='Søker …';
+ try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=no&q='+encodeURIComponent(q));const a=await r.json();
+  if(!a.length){m.className='msg err';m.textContent='Fant ikke stedet. Prøv et postnummer eller et annet stedsnavn.';return}
+  S.cfg.met={lat:(+a[0].lat).toFixed(3),lon:(+a[0].lon).toFixed(3),name:String(a[0].display_name).split(',').slice(0,2).join(',')};save();
+  m.textContent='Bruker været for '+S.cfg.met.name;await loadMet()}catch(e){m.className='msg err';m.textContent='Fikk ikke søkt etter stedet nå.'}}
+setInterval(loadMet,1800000);
+
 /* ---------- Control ---------- */
 let toastT;function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2600)}
 const timers={};const later=(k,fn,ms)=>{clearTimeout(timers[k]);timers[k]=setTimeout(fn,ms)};
@@ -379,7 +398,7 @@ function tile(d){
  let cls='tile k-'+k,body='',st='',act='',lit=false,ic=I[k]||I.sensor;
  const pw=c.measure_power?.value;
  if(k==='light'||k==='socket'||k==='fan'){
-  lit=!!c.onoff.value&&d.available!==false;st=lit?(c.dim?'På · '+Math.round(c.dim.value*100)+' %':'På'):'Av';
+  lit=!!c.onoff.value&&d.available!==false&&!(c.dim&&!(c.dim.value>0));st=lit?(c.dim?'På · '+Math.round(c.dim.value*100)+' %':'På'):'Av';
   if(lit&&pw>1)st+=' · '+nf(pw)+' W';
   if(c.dim){const p=Math.round((c.dim.value||0)*100);body=`<input class="rng" type="range" min="1" max="100" value="${p}" style="--p:${p}%" data-cap="dim" aria-label="Lysstyrke">`}
   act='toggle'}
@@ -434,7 +453,7 @@ function renderZones(){
  $('#zones').innerHTML=(fav?[`<button class="chip${S.zone==='fav'?' sel':''}" data-z="fav">Favoritter</button>`]:[]).concat([`<button class="chip${S.zone==='all'?' sel':''}" data-z="all">Alle rom</button>`]).concat(z.map(id=>{const t=zoneTemp(id);return `<button class="chip${S.zone===id?' sel':''}" data-z="${esc(id)}">${esc(zName(id))}${t!=null?`<small>${f1(t)}°</small>`:''}</button>`})).join('')}
 function renderSummary(){
  const ds=Object.values(S.devices).filter(d=>shown(d)&&!S.cfg.hidden.includes(d.id)&&inZone(d));
- const lightsOn=ds.filter(d=>kind(d)==='light'&&val(d,'onoff'));
+ const lightsOn=ds.filter(d=>kind(d)==='light'&&val(d,'onoff')&&d.available!==false&&!(caps(d).dim&&!(val(d,'dim')>0)));
  const warn=ds.filter(d=>readings(d).some(r=>r.a)||(kind(d)==='lock'&&!val(d,'locked'))).map(d=>{const r=readings(d).find(x=>x.a);return d.name+' '+(r?r.t.toLowerCase().replace('!',''):'ulåst')});
  const parts=[lightsOn.length?`${lightsOn.length} lys på`:'Alle lys er av'];
  $('#summary').innerHTML=`<span>${esc(parts.join(''))}</span>${warn.length?`<span class="warnTxt">${esc(warn.join(' · '))}</span>`:''}${lightsOn.length&&!S.edit?`<button class="tbtn" id="allOff">${I.power} Slå av lys${S.zone==='all'?'':' her'}</button>`:''}`}
@@ -453,7 +472,8 @@ function renderSide(){
  const ins=ds.filter(d=>!isOut(d)&&typeof val(d,'measure_temperature')==='number').map(d=>val(d,'measure_temperature'));
  const WS={clear:'klart',sunny:'sol',cloudy:'overskyet','partly-cloudy':'lettskyet',partlycloudy:'lettskyet',rain:'regn',rainy:'regn',snow:'snø',snowy:'snø',fog:'tåke',foggy:'tåke',storm:'storm',thunderstorm:'torden',drizzle:'yr',wind:'vind',windy:'vind'};
  const wl=WS[String(S.wstate||'').toLowerCase()];
- $('#outT').textContent=typeof S.weather==='number'?f1(S.weather)+'°':(out.length?f1(avg(out))+'°':'–');$('#outL').textContent='Ute'+(typeof S.weather==='number'&&wl?' · '+wl:'');$('#inT').textContent=ins.length?f1(avg(ins))+'°':'–';
+ if(S.met&&typeof S.met.t==='number'){$('#outT').textContent=f1(S.met.t)+'°';$('#outL').textContent='Ute'+(SYM[S.met.sym]?' · '+SYM[S.met.sym]:'')}
+ else{$('#outT').textContent=typeof S.weather==='number'?f1(S.weather)+'°':(out.length?f1(avg(out))+'°':'–');$('#outL').textContent='Ute'+(typeof S.weather==='number'&&wl?' · '+wl:'')}$('#inT').textContent=ins.length?f1(avg(ins))+'°':'–';
  const p=power();$('#energy').style.display=p.has?'':'none';
  $('#pow').textContent=nf(p.total);$('#powLbl').textContent=p.label;
  const mx=Math.max(p.total,...p.top.map(d=>val(d,'measure_power')),1);
@@ -529,7 +549,7 @@ $('#scenes').addEventListener('click',e=>{const b=e.target.closest('[data-flow]'
 $('#summary').addEventListener('click',e=>{if(!e.target.closest('#allOff'))return;
  Object.values(S.devices).filter(d=>kind(d)==='light'&&val(d,'onoff')&&!S.cfg.hidden.includes(d.id)&&inZone(d)).forEach(d=>setCap(d,'onoff',false))});
 $('#editBtn').addEventListener('click',()=>{S.edit=!S.edit;renderAll()});
-const openSet=()=>{$('#fRedir').value=redirectUrl();$('#fCid').value=S.cfg.clientId||'';$('#fSec').value=S.cfg.clientSecret||'';$('#fSaver').value=String(S.cfg.saver);$('#fOut').style.display=S.cfg.demo?'none':'';const m=$('#fMsg');m.className='msg'+(S.err?' err':'');m.textContent=S.err||'';$('#settings').classList.add('open')};
+const openSet=()=>{$('#fRedir').value=redirectUrl();$('#fCid').value=S.cfg.clientId||'';$('#fSec').value=S.cfg.clientSecret||'';$('#fSaver').value=String(S.cfg.saver);$('#fPlace').value=S.cfg.met?.name||'';$('#fPlaceMsg').textContent='';$('#fOut').style.display=S.cfg.demo?'none':'';const m=$('#fMsg');m.className='msg'+(S.err?' err':'');m.textContent=S.err||'';$('#settings').classList.add('open')};
 const closeSet=()=>$('#settings').classList.remove('open');
 $('#setBtn').addEventListener('click',openSet);$('#pill').addEventListener('click',openSet);
 $('#banner').addEventListener('click',e=>{if(e.target.closest('#bConnect'))openSet();else if(e.target.closest('#bLogin'))beginLogin().catch(err=>toast(err.message));else if(e.target.closest('#bRetry'))goLive()});
@@ -539,6 +559,7 @@ $('#settings').addEventListener('click',e=>{if(e.target.id==='settings')closeSet
 $('#fSaver').addEventListener('change',e=>{S.cfg.saver=+e.target.value;save()});
 $('#fDemo').addEventListener('click',()=>{S.cfg.demo=true;S.status='demo';S.err='';save();S.hist=[];demoData();closeSet();renderAll();tick()});
 $('#fOut').addEventListener('click',()=>logout());
+$('#fFind').addEventListener('click',findPlace);$('#fPlace').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();findPlace()}});
 $('#sForm').addEventListener('submit',async e=>{e.preventDefault();
  const m=$('#fMsg'),cid=$('#fCid').value.trim(),sec=$('#fSec').value.trim();
  if(!cid||!sec){m.className='msg err';m.textContent='Fyll inn både Client ID og Client Secret.';return}
@@ -557,7 +578,7 @@ let wl=null;document.addEventListener('pointerdown',async()=>{try{if(!wl&&naviga
 const hasCode=new URLSearchParams(location.search).has('code');
 if(S.cfg.clientId&&S.cfg.clientSecret&&(!S.cfg.demo||hasCode)){S.cfg.demo=false;S.status='conn';renderAll();clock();goLive()}
 else{S.cfg.demo=true;demoData();renderAll();tick()}
-clock();setInterval(clock,5000);
+clock();setInterval(clock,5000);loadMet();
 }
 </script>
 </body>
