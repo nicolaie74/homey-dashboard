@@ -101,6 +101,10 @@ main{overflow-y:auto;padding:16px 28px 48px 10px}
 .rng.ct{margin-top:2px}.rng.ct::-webkit-slider-runnable-track{background:linear-gradient(to right,#bcd9ff,#f4f7ff 45%,#ffd9a8 70%,#ffab52)!important}.rng.ct::-moz-range-track{background:linear-gradient(to right,#bcd9ff,#f4f7ff 45%,#ffd9a8 70%,#ffab52)}.rng.ct::-moz-range-progress{background:transparent}
 .tile.has-ct{min-height:184px}
 .wrow{display:flex;align-items:center;gap:8px}.wic{width:34px;height:34px;flex:none}.wic:empty{display:none}.wic svg{width:100%;height:100%;overflow:visible}
+.etools{display:flex;gap:6px}.drag{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--panel2);touch-action:none;cursor:grab}.drag svg{width:18px;height:18px}
+.tile.editing{animation:wob .5s ease-in-out infinite alternate}.tile.editing:nth-child(2n){animation-delay:-.25s}
+@keyframes wob{from{transform:rotate(-.4deg)}to{transform:rotate(.4deg)}}
+.tile.lifted{animation:none;transform:scale(1.05);z-index:5;box-shadow:0 26px 60px -12px rgb(0 0 0/.55);opacity:.95;cursor:grabbing}
 .tile.off{opacity:.5;background:transparent;border-style:dashed;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}.tile.off .ic{background:transparent}
 .w2{grid-column:span 2}
 .thermo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:4px}
@@ -148,7 +152,7 @@ details{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}summar
  main{overflow:visible;padding:4px 20px 48px}
 }
 @media(max-width:600px){.side{grid-template-columns:1fr}.grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}.tile{padding:12px 14px}.tgt{font-size:30px}.rb{width:44px;height:44px}}
-@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
@@ -258,6 +262,7 @@ const I={
  up:sv('<path d="M6 15l6-6 6 6"/>'),down:sv('<path d="M6 9l6 6 6-6"/>'),stop:sv('<rect x="7" y="7" width="10" height="10" rx="1.5"/>'),
  power:sv('<path d="M12 3v8M6.3 6.8a8 8 0 1 0 11.4 0"/>'),
  eye:sv('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
+ grip:sv('<circle cx="9" cy="6" r="1.3" fill="currentColor"/><circle cx="15" cy="6" r="1.3" fill="currentColor"/><circle cx="9" cy="12" r="1.3" fill="currentColor"/><circle cx="15" cy="12" r="1.3" fill="currentColor"/><circle cx="9" cy="18" r="1.3" fill="currentColor"/><circle cx="15" cy="18" r="1.3" fill="currentColor"/>'),
  eyeOff:sv('<path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/>')
 };
 
@@ -442,10 +447,11 @@ async function runFlow(f,btn){
 /* ---------- Render ---------- */
 const inZone=d=>S.zone==='all'||(S.zone==='fav'?(S.favDevices||[]).includes(d.id):d.zone===S.zone);
 const ORDER={light:0,socket:1,fan:1,media:2,thermo:3,blind:4,lock:5,sensor:6};
+const ordIx=d=>{const o=S.cfg.order||[];const i=o.indexOf(d.id);return i<0?1e6:i};
 function list(){
  const z=Object.keys(S.zones);
  return Object.values(S.devices).filter(d=>shown(d)&&(S.edit||!S.cfg.hidden.includes(d.id))&&inZone(d))
- .sort((a,b)=>(z.indexOf(a.zone)-z.indexOf(b.zone))||(ORDER[kind(a)]-ORDER[kind(b)])||String(a.name).localeCompare(b.name,'nb'))}
+ .sort((a,b)=>(z.indexOf(a.zone)-z.indexOf(b.zone))||(ordIx(a)-ordIx(b))||(ORDER[kind(a)]-ORDER[kind(b)])||String(a.name).localeCompare(b.name,'nb'))}
 function tile(d){
  const k=kind(d),c=caps(d),hid=S.cfg.hidden.includes(d.id);
  let cls='tile k-'+k,body='',st='',act='',lit=false,ic=I[k]||I.sensor;
@@ -486,11 +492,11 @@ function tile(d){
  else{const r=readings(d);if(r.some(x=>x.a))cls+=' warn';
   if(r[0]){body=`<div class="rd">${esc(r[0].t)}</div>`;st=r.slice(1).map(x=>x.t).join(' · ')}}
  const pwrBtn=(k==='thermo'&&c.onoff)?`<button class="rb sm ctl${c.onoff.value?' lit':''}" data-pw="1" aria-label="Av/på">${I.power}</button>`:'';
- const eye=S.edit?`<button class="eye" data-eye aria-label="${hid?'Vis':'Skjul'} ${esc(d.name)}">${hid?I.eyeOff:I.eye}</button>`:'';
+ const eye=S.edit?`<span class="etools"><span class="drag" aria-label="Flytt ${esc(d.name)}">${I.grip}</span><button class="eye" data-eye aria-label="${hid?'Vis':'Skjul'} ${esc(d.name)}">${hid?I.eyeOff:I.eye}</button></span>`:'';
  if(lit)cls+=' on';if(hid)cls+=' hid';if(d.available===false){cls=cls.replace(' on','')+' off';st='Utilgjengelig';body=''}
  const lvl=lit&&c.dim?` style="--lvl:${Math.max(8,Math.round((c.dim.value||0)*100))}%"`:'';
  const a=act&&!S.edit?` data-act="${act}" role="button" tabindex="0" aria-pressed="${lit}"`:'';
- return `<div class="${cls}" data-id="${esc(d.id)}"${a}${lvl}><div class="top"><span class="ic">${ic}</span>${eye||pwrBtn}</div><div class="nm">${esc(dn(d))}</div><div class="st">${esc(st)}</div>${body}</div>`}
+ return `<div class="${cls}${S.edit?' editing':''}" data-id="${esc(d.id)}" data-z="${esc(d.zone)}"${a}${lvl}><div class="top"><span class="ic">${ic}</span>${eye||pwrBtn}</div><div class="nm">${esc(dn(d))}</div><div class="st">${esc(st)}</div>${body}</div>`}
 function renderGrid(){
  const ds=list();let html='',last=null;
  for(const d of ds){if(S.zone==='all'&&d.zone!==last){last=d.zone;const t=zoneTemp(d.zone);html+=`<h2 class="zh">${esc(zName(d.zone)||'Uten rom')}${t!=null?`<span>${f1(t)}°</span>`:''}</h2>`}html+=tile(d)}
@@ -498,7 +504,7 @@ function renderGrid(){
  S.sig=S.zone+'|'+S.edit+'|'+ds.map(d=>d.id).join(',')}
 function refreshTile(id){
  const el=$('#grid').querySelector(`[data-id="${CSS.escape(id)}"]`),d=S.devices[id];
- if(!el||!d||S.drag===id||el.dataset.arm)return;el.outerHTML=tile(d)}
+ if(!el||!d||S.drag===id||S.sorting||el.dataset.arm)return;el.outerHTML=tile(d)}
 function renderZones(){
  const used=[...new Set(Object.values(S.devices).filter(d=>shown(d)&&!S.cfg.hidden.includes(d.id)).map(d=>d.zone))];
  const z=Object.keys(S.zones).filter(id=>used.includes(id));
@@ -509,6 +515,7 @@ function renderSummary(){
  const ds=Object.values(S.devices).filter(d=>shown(d)&&!S.cfg.hidden.includes(d.id)&&inZone(d));
  const lightsOn=ds.filter(d=>kind(d)==='light'&&val(d,'onoff')&&d.available!==false&&!(caps(d).dim&&!(Math.round((val(d,'dim')||0)*100)>0)));
  const warn=ds.filter(d=>readings(d).some(r=>r.a)||(kind(d)==='lock'&&!val(d,'locked'))).map(d=>{const r=readings(d).find(x=>x.a);return d.name+' '+(r?r.t.toLowerCase().replace('!',''):'ulåst')});
+ if(S.edit){$('#summary').innerHTML=`<span>Dra i prikkene for å flytte en enhet. Trykk på øyet for å skjule den.</span>${(S.cfg.order||[]).length?`<button class="tbtn" id="resetOrd">Tilbakestill rekkefølge</button>`:''}`;return}
  const parts=[lightsOn.length?`${lightsOn.length} lys på`:'Alle lys er av'];
  $('#summary').innerHTML=`<span>${esc(parts.join(''))}</span>${warn.length?`<span class="warnTxt">${esc(warn.join(' · '))}</span>`:''}${lightsOn.length&&!S.edit?`<button class="tbtn" id="allOff">${I.power} Slå av lys${S.zone==='all'?'':' her'}</button>`:''}`}
 function renderScenes(){
@@ -599,6 +606,16 @@ grid.addEventListener('input',e=>{const r=e.target.closest('.rng');if(!r)return;
  else if(cap==='windowcoverings_set')el.querySelector('.st').textContent=r.value==='0'?'Lukket':r.value==='100'?'Åpen':'Åpen '+r.value+' %';
  later(d.id+cap,()=>send(d,cap,v),250)});
 grid.addEventListener('change',e=>{const r=e.target.closest('.rng');if(!r)return;const d=S.devices[r.closest('.tile').dataset.id];later(d.id+r.dataset.cap,()=>send(d,r.dataset.cap,+r.value/100),0);renderSummary();endDrag()});
+grid.addEventListener('pointerdown',e=>{const h=e.target.closest('.drag');if(!h||!S.edit)return;e.preventDefault();
+ const el=h.closest('.tile');S.sorting=true;el.classList.add('lifted');el.style.pointerEvents='none';
+ const mv=ev=>{const t=document.elementFromPoint(ev.clientX,ev.clientY);const o=t&&t.closest('.tile');
+  if(o&&o!==el&&o.dataset.z===el.dataset.z){const r=o.getBoundingClientRect();const after=ev.clientX>r.left+r.width/2||ev.clientY>r.bottom-8;o.parentNode.insertBefore(el,after?o.nextSibling:o)}
+  const m=document.querySelector('main');if(ev.clientY<90){m.scrollBy(0,-12);scrollBy(0,-12)}else if(ev.clientY>innerHeight-60){m.scrollBy(0,12);scrollBy(0,12)}};
+ const up=()=>{document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);
+  el.classList.remove('lifted');el.style.pointerEvents='';S.sorting=false;
+  const ids=[...grid.querySelectorAll('.tile')].map(t=>t.dataset.id);const rest=(S.cfg.order||[]).filter(id=>!ids.includes(id));S.cfg.order=ids.concat(rest);save();renderSummary()};
+ document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up)});
+$('#summary').addEventListener('click',e=>{if(e.target.closest('#resetOrd')){S.cfg.order=[];save();renderGrid();renderSummary()}});
 $('#zones').addEventListener('click',e=>{const b=e.target.closest('[data-z]');if(!b)return;S.zone=b.dataset.z;renderZones();renderGrid();renderSummary();$('main').scrollTop=0});
 $('#scenes').addEventListener('click',e=>{const b=e.target.closest('[data-flow]');if(!b)return;const f=S.flows.find(x=>x.id===b.dataset.flow);if(!f)return;
  if(S.edit){const h=S.cfg.hiddenFlows,i=h.indexOf(f.id);i<0?h.push(f.id):h.splice(i,1);save();renderScenes();return}runFlow(f,b)});
